@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'">
+<title>S Clean</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="drag"></div>
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" role="img" aria-label="Logo S Clean">
+      <rect width="32" height="32" rx="9" class="logo-bg"/>
+      <g transform="translate(4 4) scale(1)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.6 8.4C15.8 7 14.2 6.2 12.2 6.2 9.9 6.2 8.4 7.4 8.4 9.1c0 4.4 7.8 2.4 7.8 6.6 0 1.8-1.7 3.1-4.2 3.1-2 0-3.6-.8-4.6-2.2"/>
+        <path d="M18.8 3.2l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" fill="#fff" stroke-width="0.6"/>
+      </g>
+    </svg>
+    <span class="brand-name">S Clean</span>
+  </div>
+  <nav class="nav" aria-label="Chức năng"></nav>
+  <div class="disk-card">
+    <div class="disk-title">Macintosh HD</div>
+    <div class="meter"><i id="diskMeter"></i></div>
+    <div class="disk-text" id="diskText">Đang đọc...</div>
+  </div>
+  <div class="copyright" id="copyright">S Clean · © 2026 Socin.org</div>
+</aside>
+
+<main class="main">
+  <section class="page active" id="page-home">
+    <header class="page-head"><div><h1>Tổng quan</h1><p class="sub">Dọn dẹp Mac gọn trong ba bước: quét, xem lại, dọn.</p></div></header>
+    <div class="page-body" id="homeBody"></div>
+  </section>
+
+  <section class="page" id="page-junk">
+    <header class="page-head"><div><h1>Dọn rác</h1><p class="sub">Mục an toàn tick sẵn. Mục cần xem lại do bạn quyết định.</p></div>
+      <div class="actions"><span class="status" id="junkStatus"></span><button class="btn" id="junkScan">Quét</button></div></header>
+    <div class="page-body" id="junkBody"><div class="empty">Bấm "Quét" để bắt đầu.</div></div>
+    <footer class="page-foot"><div id="junkSum"></div><button class="btn primary" id="junkClean" disabled>Dọn dẹp</button></footer>
+  </section>
+
+  <section class="page" id="page-big">
+    <header class="page-head"><div><h1>File lớn và cũ</h1><p class="sub">Không tick sẵn gì cả. Xem thumbnail rồi tự chọn file muốn xóa.</p></div>
+      <div class="actions"><span class="status" id="bigStatus"></span><button class="btn" id="bigScan">Quét</button></div></header>
+    <div class="page-body" id="bigBody"><div class="empty">Bấm "Quét" để tìm file lớn.</div></div>
+    <footer class="page-foot"><div id="bigSum"></div><button class="btn primary" id="bigTrash" disabled>Chuyển vào Thùng rác</button></footer>
+  </section>
+
+  <section class="page" id="page-media">
+    <header class="page-head"><div><h1>Ảnh và video</h1><p class="sub">Phân loại theo nhóm, bấm vào ô để xem thumbnail trước khi xóa.</p></div>
+      <div class="actions"><span class="status" id="mediaStatus"></span><button class="btn" id="mediaScan">Quét</button></div></header>
+    <div class="page-body" id="mediaBody"><div class="empty">Bấm "Quét" để phân loại ảnh và video.</div></div>
+    <footer class="page-foot"><div id="mediaSum"></div><button class="btn primary" id="mediaTrash" disabled>Chuyển vào Thùng rác</button></footer>
+  </section>
+
+  <section class="page" id="page-files">
+    <header class="page-head"><div><h1>File trùng</h1><p class="sub">So sánh nội dung thật của file, không chỉ tên.</p></div>
+      <div class="actions"><span class="status" id="filesStatus"></span><button class="btn" id="filesScan">Quét</button></div></header>
+    <div class="page-body" id="filesBody"></div>
+    <footer class="page-foot"><div id="filesSum"></div><button class="btn primary" id="filesTrash" disabled>Chuyển vào Thùng rác</button></footer>
+  </section>
+
+  <section class="page" id="page-apps">
+    <header class="page-head"><div><h1>Ứng dụng trùng</h1><p class="sub">Tìm ứng dụng cài nhiều bản trong /Applications.</p></div>
+      <div class="actions"><span class="status" id="appsStatus"></span><button class="btn" id="appsScan">Quét</button></div></header>
+    <div class="page-body" id="appsBody"><div class="empty">Bấm "Quét" để tìm ứng dụng trùng.</div></div>
+    <footer class="page-foot"><div id="appsSum"></div><button class="btn primary" id="appsTrash" disabled>Gỡ các bản đã chọn</button></footer>
+  </section>
+</main>
+<div id="toast" role="status"></div>
+<script src="js/core.js"></script>
+<script src="js/home.js"></script>
+<script src="js/junk.js"></script>
+<script src="js/large.js"></script>
+<script src="js/media.js"></script>
+<script src="js/files.js"></script>
+<script src="js/apps.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

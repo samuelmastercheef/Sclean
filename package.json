@@ -1,0 +1,41 @@
+{
+  "name": "sclean",
+  "productName": "S Clean",
+  "version": "1.0.0",
+  "description": "S Clean: dọn rác, file lớn, ảnh/video, file trùng và ứng dụng trùng cho macOS",
+  "author": "Socin.org",
+  "homepage": "https://socin.org",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/run.js",
+    "dist": "electron-builder --mac",
+    "dist:arm64": "electron-builder --mac --arm64",
+    "dist:x64": "electron-builder --mac --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "org.socin.sclean",
+    "productName": "S Clean",
+    "copyright": "© 2026 Socin.org",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "lib/**", "renderer/**", "package.json"],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": ["dmg", "zip"],
+      "icon": "build/icon.png",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSDesktopFolderUsageDescription": "S Clean cần đọc thư mục Desktop để tìm file lớn, ảnh, video và file trùng.",
+        "NSDocumentsFolderUsageDescription": "S Clean cần đọc thư mục Documents để tìm file lớn, ảnh, video và file trùng.",
+        "NSDownloadsFolderUsageDescription": "S Clean cần đọc thư mục Downloads để tìm file cài đặt cũ, file lớn và file trùng."
+      }
+    },
+    "dmg": { "title": "S Clean ${version}" }
+  }
+}

@@ -133,6 +133,8 @@ SC.setScanButton = function (btn, scanning, label) {
   btn.textContent = scanning ? 'Dừng' : (label || 'Quét');
 };
 
+SC.trashed = 0;
+SC.pruneAll = (paths) => { const s = new Set(paths); Object.values(SC.pages).forEach((p) => p && p.prune && p.prune(s)); if (SC.updateHome) SC.updateHome(); };
 SC.sumSize = (arr, f = (x) => x.size) => arr.reduce((s, x) => s + f(x), 0);
 
 SC.stat = (key, text) => { const el = document.getElementById(key + 'Status'); if (el) el.textContent = text || ''; };

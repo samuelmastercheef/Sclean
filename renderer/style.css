@@ -41,6 +41,8 @@ button, input, select { font: inherit; color: inherit; }
 .sub { margin: 4px 0 0; color: var(--mute); }
 .actions { display: flex; align-items: center; gap: 10px; flex: none; }
 .status { color: var(--mute); font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-body > * { flex: none; }
+.page-body > .mwrap { flex: 1; }
 .page-body { flex: 1; min-height: 0; overflow: auto; padding: 0 28px 16px; display: flex; flex-direction: column; gap: 10px; }
 .page-foot { height: 64px; flex: none; border-top: 1px solid var(--line); background: var(--card); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .page-foot b { font-size: 15px; font-weight: 650; }

@@ -59,7 +59,7 @@ document.getElementById('appsTrash').addEventListener('click', async () => {
   if (r.error) return SC.toast(r.error);
   if (r.cancelled) return;
   SC.toast(`Đã gỡ ${r.done} ứng dụng, giải phóng ${fmt(r.freed)}` + (r.failed.length ? ` · không gỡ được: ${r.failed.join(', ')}` : ''));
-  SC.refreshDisk();
+  SC.trashed += r.freed; SC.refreshDisk();
   await scan();
 });
 SC.pages.apps = { scan };

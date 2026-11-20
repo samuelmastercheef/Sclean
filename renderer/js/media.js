@@ -127,14 +127,16 @@ async function trash(paths) {
   if (r.error) return SC.toast(r.error);
   if (r.cancelled) return;
   SC.toast(`Đã chuyển ${r.done} mục vào Thùng rác, giải phóng ${fmt(r.freed)}` + (r.failed.length ? ` · lỗi: ${r.failed.join(', ')}` : ''));
-  SC.refreshDisk();
+  SC.trashed += r.freed; SC.refreshDisk();
   const failedNames = new Set(r.failed);
-  const gone = new Set(paths.filter((p) => !failedNames.has(p.split('/').pop())));
+  SC.pruneAll(paths.filter((p) => !failedNames.has(p.split('/').pop())));
+}
+function prune(gone) {
+  if (!items.some((i) => gone.has(i.path))) return;
   items = items.filter((i) => !gone.has(i.path)); SC.state.media = items;
   gone.forEach((p) => sel.delete(p));
   if (current && gone.has(current.path)) current = null;
   render(); SC.badge('media', fmt(SC.sumSize(items)));
-  if (SC.updateHome) SC.updateHome();
 }
 
 async function scan() {
@@ -154,6 +156,6 @@ async function scan() {
 
 document.getElementById('mediaScan').addEventListener('click', scan);
 document.getElementById('mediaTrash').addEventListener('click', () => trash([...sel]));
-SC.pages.media = { scan };
+SC.pages.media = { scan, prune };
 SC.status.media = (t) => SC.stat('media', t);
 })();

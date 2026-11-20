@@ -111,16 +111,19 @@ document.getElementById('filesTrash').addEventListener('click', async () => {
   if (r.error) return SC.toast(r.error);
   if (r.cancelled) return;
   SC.toast(`Đã chuyển ${r.done} file vào Thùng rác, giải phóng ${fmt(r.freed)}` + (r.failed.length ? ` · lỗi: ${r.failed.join(', ')}` : ''));
-  SC.refreshDisk();
-  const gone = new Set(paths);
+  SC.trashed += r.freed; SC.refreshDisk();
+  const failedNames = new Set(r.failed);
+  SC.pruneAll(paths.filter((p) => !failedNames.has(p.split('/').pop())));
+});
+function prune(gone) {
+  if (!groups.some((g) => g.files.some((f) => gone.has(f.path)))) return;
   groups = groups.map((g) => ({ ...g, files: g.files.filter((f) => !gone.has(f.path)) })).filter((g) => g.files.length > 1);
   SC.state.dups = groups; renderGroups();
   SC.badge('files', fmt(SC.sumSize(groups, (g) => g.size * (g.files.length - 1))));
-  if (SC.updateHome) SC.updateHome();
-});
+}
 
 SC.pages.files = {
-  scan,
+  scan, prune,
   init: async () => { folders = (await api.roots('dup')).map((p) => ({ path: p, on: !/Movies|Music/.test(p) })); build(); },
 };
 SC.status.dup = (t) => SC.stat('files', t);

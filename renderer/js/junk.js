@@ -74,6 +74,7 @@ async function scan() {
   try {
     cats = await api.junkScan();
     SC.state.junk = cats;
+    { const tr = cats.find((c) => c.id === 'trash'); SC.trashed = tr ? tr.total : 0; if (SC.refreshDisk) SC.refreshDisk(); }
     sel.clear();
     for (const p of safePaths()) sel.add(p);
     render();

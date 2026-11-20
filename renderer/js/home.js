@@ -69,6 +69,8 @@ SC.updateHome = render;
 SC.refreshDisk = async function () {
   disk = await api.diskInfo();
   const m = document.getElementById('diskMeter'), t = document.getElementById('diskText');
+  const pend = document.getElementById('diskPend');
+  if (pend) { pend.hidden = SC.trashed <= 0; pend.textContent = SC.trashed > 0 ? `${fmt(SC.trashed)} đang nằm trong Thùng rác. Làm trống Thùng rác để thực sự giải phóng ổ đĩa.` : ''; }
   if (disk) { m.style.width = ((disk.total - disk.free) / disk.total * 100).toFixed(0) + '%'; t.textContent = `${fmt(disk.free)} trống / ${fmt(disk.total)}`; }
   render();
 };

@@ -85,12 +85,13 @@ document.getElementById('bigTrash').addEventListener('click', async () => {
   if (r.error) return SC.toast(r.error);
   if (r.cancelled) return;
   SC.toast(`Đã chuyển ${r.done} file vào Thùng rác, giải phóng ${fmt(r.freed)}` + (r.failed.length ? ` · lỗi: ${r.failed.join(', ')}` : ''));
-  SC.refreshDisk();
-  const gone = new Set(paths.filter((p) => !r.failed.includes(p.split('/').pop())));
-  items = items.filter((i) => !gone.has(i.path)); SC.state.big = items; sel.clear(); render();
-  SC.badge('big', fmt(SC.sumSize(items)));
-  if (SC.updateHome) SC.updateHome();
+  SC.trashed += r.freed; SC.refreshDisk();
+  SC.pruneAll(paths.filter((p) => !r.failed.includes(p.split('/').pop())));
 });
-SC.pages.big = { scan };
+SC.pages.big = { scan, prune(gone) {
+  if (!items.some((i) => gone.has(i.path))) return;
+  items = items.filter((i) => !gone.has(i.path)); SC.state.big = items; gone.forEach((p) => sel.delete(p));
+  render(); SC.badge('big', fmt(SC.sumSize(items)));
+} };
 SC.status.big = (t) => SC.stat('big', t);
 })();

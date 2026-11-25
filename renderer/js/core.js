@@ -1,6 +1,6 @@
 (function () {
 'use strict';
-const SC = window.SC = { pages: {}, state: { junk: null, big: null, media: null, dups: null, apps: null, storage: null, map: null }, status: {} };
+const SC = window.SC = { pages: {}, state: { junk: null, big: null, media: null, dups: null, apps: null, storage: null, map: null, applist: null }, status: {} };
 
 SC.$ = (s, r = document) => r.querySelector(s);
 
@@ -121,7 +121,7 @@ SC.lazyThumb = function (box, path, size) {
 SC.nav = [
   ['home', 'Tổng quan', 'home'], ['map', 'Bản đồ dung lượng', 'map'], ['storage', 'Dung lượng ẩn', 'disc'],
   ['junk', 'Dọn rác', 'junk'], ['big', 'File lớn và cũ', 'big'],
-  ['media', 'Ảnh và video', 'image'], ['files', 'File trùng', 'files'], ['apps', 'Ứng dụng trùng', 'apps'],
+  ['media', 'Ảnh và video', 'image'], ['files', 'File trùng', 'files'], ['applist', 'Quản lý ứng dụng', 'window'], ['apps', 'Ứng dụng trùng', 'apps'],
   ['history', 'Lịch sử và an toàn', 'history'],
 ];
 SC.badge = (key, text) => { const b = document.getElementById('badge-' + key); if (b) b.textContent = text || ''; };

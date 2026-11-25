@@ -11,6 +11,7 @@ const dupfiles = require('./lib/dupfiles');
 const dupapps = require('./lib/dupapps');
 const storage = require('./lib/storage');
 const diskmap = require('./lib/diskmap');
+const applist = require('./lib/applist');
 const { protectedReason } = require('./lib/safety');
 const { createHistory, createSettings } = require('./lib/history');
 
@@ -25,7 +26,8 @@ let win;
 const cancel = { big: false, media: false, dup: false, map: false };
 
 // Chỉ cho phép thao tác trên những đường dẫn đã nằm trong kết quả quét gần nhất
-const allowed = { junk: new Map(), big: new Map(), media: new Map(), dup: new Map(), app: new Map(), storage: new Map(), map: new Map() };
+const allowed = { junk: new Map(), big: new Map(), media: new Map(), dup: new Map(), app: new Map(), storage: new Map(), map: new Map(), applist: new Map() };
+let appList = new Map(); // path -> thông tin app trong lần quét gần nhất
 const allowedMounts = new Set();
 const allowedRuntimes = new Map();
 let dupGroups = [];
@@ -298,6 +300,54 @@ ipcMain.handle('items:trash', async (_e, kind, paths) => {
   }
   await history.add(log).catch(() => {});
   return { cancelled: false, done, freed, failed };
+});
+
+// ---------- Quản lý ứng dụng ----------
+ipcMain.handle('applist:scan', async () => {
+  send('progress', { scope: 'applist', text: 'Đang đọc danh sách ứng dụng...' });
+  const apps = await applist.scan(home, (p) => send('progress', p));
+  appList = new Map(apps.map((a) => [a.path, a]));
+  allowed.applist.clear();
+  for (const a of apps) {
+    allowed.applist.set(a.path, { size: a.size });
+    for (const d of a.data) allowed.applist.set(d.path, { size: d.size });
+  }
+  return apps;
+});
+
+// Gỡ ứng dụng: chuyển app (và dữ liệu đi kèm nếu chọn) vào Thùng rác. Không gỡ app hệ thống hay app đang mở.
+ipcMain.handle('applist:uninstall', async (_e, paths, withData) => {
+  const list = [...new Set(paths || [])].map((p) => appList.get(p)).filter(Boolean);
+  if (!list.length) return { cancelled: true };
+  const sys = list.filter((a) => a.kind === 'system');
+  if (sys.length) return { error: `${sys.map((a) => a.name).join(', ')} là ứng dụng hệ thống của macOS, không gỡ được.` };
+  const procs = await runningApps();
+  const busy = list.filter((a) => procs.includes(a.path.toLowerCase() + '/'));
+  if (busy.length) return { error: `Hãy thoát ${busy.map((a) => a.name).join(', ')} trước khi gỡ.` };
+  for (const a of list) { const why = protectedReason(a.path, home); if (why) return { error: `${a.name}: ${why}` }; }
+  const appSize = list.reduce((s, a) => s + a.size, 0);
+  const dataSize = withData ? list.reduce((s, a) => s + a.dataSize, 0) : 0;
+  const names = list.slice(0, 6).map((a) => a.name).join(', ') + (list.length > 6 ? ` và ${list.length - 6} app khác` : '');
+  const ok = await confirm(`Gỡ ${list.length} ứng dụng (${fmt(appSize + dataSize)})?`,
+    `${names}.\nTất cả chuyển vào Thùng rác, khôi phục được.` +
+    (withData ? ` Gồm cả dữ liệu đi kèm (${fmt(dataSize)}): cài đặt, cache, dữ liệu trong ~/Library của các app này.` : ' Dữ liệu đi kèm trong ~/Library được giữ lại.') +
+    (list.some((a) => a.appStore || a.kind === 'apple') ? '\nApp từ App Store có thể tải lại miễn phí.' : ''), 'Gỡ và chuyển vào Thùng rác');
+  if (!ok) return { cancelled: true };
+  let done = 0, freed = 0; const failed = []; const log = []; const removed = [];
+  for (const a of list) {
+    try {
+      await removePath(a.path, a.size, 'trash', 'Quản lý ứng dụng', log);
+      done++; freed += a.size; removed.push(a.path);
+      if (withData) {
+        for (const d of a.data) {
+          try { await removePath(d.path, d.size, 'trash', `Dữ liệu của ${a.name}`, log); freed += d.size; } catch { /* bỏ qua mục lỗi */ }
+        }
+      }
+      appList.delete(a.path); allowed.applist.delete(a.path);
+    } catch { failed.push(a.name); }
+  }
+  await history.add(log).catch(() => {});
+  return { cancelled: false, done, freed, failed, removed };
 });
 
 // ---------- Bản đồ dung lượng ----------

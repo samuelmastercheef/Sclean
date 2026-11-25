@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteRuntime: inv('storage:deleteRuntime'),
   openSettings: inv('open:settings'),
   mapScan: inv('map:scan'),
+  appList: inv('applist:scan'),
+  uninstall: inv('applist:uninstall'),
   copy: inv('clipboard:copy'),
   openTrash: inv('open:trash'),
   history: inv('history:list'),

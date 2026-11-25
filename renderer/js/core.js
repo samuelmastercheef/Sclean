@@ -1,6 +1,6 @@
 (function () {
 'use strict';
-const SC = window.SC = { pages: {}, state: { junk: null, big: null, media: null, dups: null, apps: null }, status: {} };
+const SC = window.SC = { pages: {}, state: { junk: null, big: null, media: null, dups: null, apps: null, storage: null, map: null }, status: {} };
 
 SC.$ = (s, r = document) => r.querySelector(s);
 
@@ -55,6 +55,11 @@ const ICONS = {
   film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 15h18M8 4v16M16 4v16"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   doc: '<path d="M7 3h8l4 4v14H7z"/><path d="M10 12h6M10 16h6"/>',
+  map: '<path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>',
+  box: '<path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
 };
 SC.icon = function (name, size = 17, sw = 1.8) {
   const t = document.createElement('template');
@@ -114,8 +119,10 @@ SC.lazyThumb = function (box, path, size) {
 
 // ---- Điều hướng ----
 SC.nav = [
-  ['home', 'Tổng quan', 'home'], ['junk', 'Dọn rác', 'junk'], ['big', 'File lớn và cũ', 'big'],
+  ['home', 'Tổng quan', 'home'], ['map', 'Bản đồ dung lượng', 'map'], ['storage', 'Dung lượng ẩn', 'disc'],
+  ['junk', 'Dọn rác', 'junk'], ['big', 'File lớn và cũ', 'big'],
   ['media', 'Ảnh và video', 'image'], ['files', 'File trùng', 'files'], ['apps', 'Ứng dụng trùng', 'apps'],
+  ['history', 'Lịch sử và an toàn', 'history'],
 ];
 SC.badge = (key, text) => { const b = document.getElementById('badge-' + key); if (b) b.textContent = text || ''; };
 SC.go = function (key) {

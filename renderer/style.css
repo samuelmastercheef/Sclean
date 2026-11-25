@@ -21,7 +21,7 @@ button, input, select { font: inherit; color: inherit; }
 .nav { display: flex; flex-direction: column; gap: 3px; }
 .nav-item { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; text-align: left; font-weight: 500; }
 .nav-item .nm { flex: 1; white-space: nowrap; }
-.nav-item .badge { font-size: 12px; color: var(--mute); font-weight: 500; }
+.nav-item .badge { font-size: 12px; white-space: nowrap; color: var(--mute); font-weight: 500; }
 .nav-item.active { background: var(--acc-soft); color: var(--acc-dark); font-weight: 650; }
 .nav-item.active .badge { color: var(--acc-dark); }
 .disk-card { margin-top: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
@@ -145,6 +145,12 @@ input[type=number] { width: 60px; height: 28px; border-radius: 8px; border: 1px 
 .grow { display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-top: 1px solid var(--line); font-size: 12px; }
 .arow { display: flex; align-items: center; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--line); }
 .arow .tile { width: 34px; height: 34px; border-radius: 9px; font-weight: 650; font-size: 15px; }
+
+/* Dung lượng ẩn */
+.st-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+.st-note { padding: 10px 20px; font-size: 12px; }
+.st-path { font-weight: 400; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.jrow .nm { min-width: 0; }
 
 #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #000d; color: #fff; padding: 9px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 70vw; }
 #toast.show { opacity: 1; }

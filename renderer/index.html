@@ -63,6 +63,12 @@
     <footer class="page-foot"><div id="filesSum"></div><button class="btn primary" id="filesTrash" disabled>Chuyển vào Thùng rác</button></footer>
   </section>
 
+  <section class="page" id="page-storage">
+    <header class="page-head"><div><h1>Dung lượng ẩn</h1><p class="sub">Phần "Dữ liệu hệ thống" Finder không hiện: nó là gì và xử lý an toàn ra sao.</p></div>
+      <div class="actions"><span class="status" id="storageStatus"></span><button class="btn" id="storageScan">Quét</button></div></header>
+    <div class="page-body" id="storageBody"><div class="empty">Bấm "Quét" để tìm phần dung lượng mà Finder không hiện.</div></div>
+  </section>
+
   <section class="page" id="page-apps">
     <header class="page-head"><div><h1>Ứng dụng trùng</h1><p class="sub">Tìm ứng dụng cài nhiều bản trong /Applications.</p></div>
       <div class="actions"><span class="status" id="appsStatus"></span><button class="btn" id="appsScan">Quét</button></div></header>
@@ -78,6 +84,7 @@
 <script src="js/media.js"></script>
 <script src="js/files.js"></script>
 <script src="js/apps.js"></script>
+<script src="js/storage.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

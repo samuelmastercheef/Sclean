@@ -1,6 +1,6 @@
 'use strict';
 const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const fsp = require('fs').promises;
 const os = require('os');
 const path = require('path');
@@ -9,6 +9,7 @@ const bigfiles = require('./lib/bigfiles');
 const media = require('./lib/media');
 const dupfiles = require('./lib/dupfiles');
 const dupapps = require('./lib/dupapps');
+const storage = require('./lib/storage');
 
 app.setName('S Clean');
 app.setAboutPanelOptions({
@@ -21,7 +22,9 @@ let win;
 const cancel = { big: false, media: false, dup: false };
 
 // Chỉ cho phép thao tác trên những đường dẫn đã nằm trong kết quả quét gần nhất
-const allowed = { junk: new Map(), big: new Map(), media: new Map(), dup: new Map(), app: new Map() };
+const allowed = { junk: new Map(), big: new Map(), media: new Map(), dup: new Map(), app: new Map(), storage: new Map() };
+const allowedMounts = new Set();
+const allowedRuntimes = new Map();
 let dupGroups = [];
 let appGroups = [];
 
@@ -34,6 +37,15 @@ const fmt = (n) => {
 const send = (ch, payload) => { if (win && !win.isDestroyed()) win.webContents.send(ch, payload); };
 const isAllowed = (p) => Object.values(allowed).some((m) => m.has(p));
 const home = os.homedir();
+const run = (cmd, args, timeout = 60000) => new Promise((resolve) => {
+  execFile(cmd, args, { timeout, maxBuffer: 8 << 20 }, (err, stdout, stderr) => resolve({ ok: !err, out: String(stdout || ''), err: String(stderr || (err && err.message) || '') }));
+});
+
+// Ứng dụng đang chạy (đường dẫn file thực thi), để không xóa cache của app đang mở
+async function runningApps() {
+  const r = await run('ps', ['-axo', 'comm=']);
+  return r.out.toLowerCase();
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -125,18 +137,72 @@ ipcMain.handle('junk:clean', async (_e, paths) => {
   const total = list.reduce((s, p) => s + allowed.junk.get(p).size, 0);
   const perm = list.filter((p) => allowed.junk.get(p).how === 'delete').length;
   const ok = await confirm(`Dọn ${list.length} mục (${fmt(total)})?`,
-    `${perm} mục bị xóa hẳn (cache, log, node_modules, Thùng rác). ${list.length - perm} mục chuyển vào Thùng rác.`, 'Dọn dẹp');
+    `${perm} mục bị xóa hẳn (cache, log, node_modules, Thùng rác). ${list.length - perm} mục chuyển vào Thùng rác.` +
+    (list.some((p) => allowed.junk.get(p).cat === 'appcache') ? '\nCache của trình duyệt và ứng dụng đang mở sẽ được bỏ qua: hãy thoát chúng trước nếu muốn dọn.' : ''), 'Dọn dẹp');
   if (!ok) return { cancelled: true };
   let freed = 0, failed = 0;
+  const busy = new Set();
+  const procs = list.some((p) => allowed.junk.get(p).cat === 'appcache') ? await runningApps() : '';
   for (const p of list) {
     const info = allowed.junk.get(p);
+    if (info.cat === 'appcache') {
+      const owner = junk.cacheOwner(p, home);
+      if (owner && procs.includes('/' + owner.toLowerCase() + '.app/')) { busy.add(owner); continue; }
+    }
     try {
       if (info.how === 'trash') await shell.trashItem(p); else await fsp.rm(p, { recursive: true, force: true });
       freed += info.size; allowed.junk.delete(p);
     } catch { failed++; }
   }
-  return { cancelled: false, freed, failed };
+  return { cancelled: false, freed, failed, busy: [...busy] };
 });
+
+// ---------- Dung lượng ẩn ----------
+ipcMain.handle('storage:scan', async () => {
+  const res = await storage.scan(home, (p) => send('progress', p));
+  allowed.storage.clear(); allowedMounts.clear(); allowedRuntimes.clear();
+  for (const h of res.hidden) allowed.storage.set(h.path, { size: h.size });
+  for (const a of res.protected) allowed.storage.set(a.path, { size: a.size || 0 });
+  for (const i of res.images) {
+    for (const m of i.mounts) allowedMounts.add(m);
+    if (i.image) allowed.storage.set(i.image, { size: i.size });
+  }
+  for (const r of res.runtimes) if (r.deletable) allowedRuntimes.set(r.id, r);
+  return res;
+});
+
+// Tháo ổ DMG đang gắn. Không xóa gì, file .dmg vẫn còn nguyên.
+ipcMain.handle('storage:eject', async (_e, mounts) => {
+  const list = (mounts || []).filter((m) => allowedMounts.has(m));
+  let done = 0; const failed = [];
+  for (const m of list) {
+    const r = await run('hdiutil', ['detach', m]);
+    if (r.ok) { done++; allowedMounts.delete(m); } else failed.push(path.basename(m));
+  }
+  return { done, failed };
+});
+
+// Xóa runtime iOS Simulator (tải lại được trong Xcode › Settings › Components)
+ipcMain.handle('storage:deleteRuntime', async (_e, id) => {
+  const rt = allowedRuntimes.get(id);
+  if (!rt) return { error: 'Runtime không nằm trong kết quả quét' };
+  const ok = await confirm(`Xóa ${rt.platform} ${rt.version} (${rt.build})?`,
+    `Giải phóng khoảng ${fmt(rt.size)}. Xóa hẳn, không vào Thùng rác. Có thể tải lại trong Xcode › Settings › Components.` +
+    (rt.lastUsed ? `\nLần dùng gần nhất: ${new Date(rt.lastUsed).toLocaleDateString('vi-VN')}.` : ''), 'Xóa runtime');
+  if (!ok) return { cancelled: true };
+  const r = await run('xcrun', ['simctl', 'runtime', 'delete', id], 300000);
+  if (!r.ok) return { error: r.err.trim().split('\n').pop() || 'Không xóa được' };
+  allowedRuntimes.delete(id);
+  return { freed: rt.size };
+});
+
+// Mở đúng trang trong Cài đặt hệ thống (URL cố định)
+const SETTINGS_URL = {
+  fda: 'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
+  storage: 'x-apple.systempreferences:com.apple.settings.Storage',
+  update: 'x-apple.systempreferences:com.apple.Software-Update-Settings.extension',
+};
+ipcMain.handle('open:settings', (_e, key) => { if (SETTINGS_URL[key]) shell.openExternal(SETTINGS_URL[key]); });
 
 // ---------- File lớn và cũ ----------
 ipcMain.handle('big:scan', async (_e, roots, opts) => {

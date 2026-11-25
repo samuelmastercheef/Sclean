@@ -42,7 +42,7 @@ function render() {
     h('button', { type: 'button', class: 'btn primary', id: 'heroBtn', disabled: scanningAll, onclick: onHero },
       icon(mode === 'clean' ? 'junk' : 'scan', 15, 2), scanningAll ? 'Đang quét...' : (mode === 'clean' ? 'Dọn an toàn ngay' : 'Quét tất cả')));
   body().replaceChildren(hero, h('div', { class: 'grid3' },
-    card('junk', 'junk', 'Dọn rác', S.junk ? '12 nhóm, mục an toàn tick sẵn' : 'Cache, log, rác lập trình, file cài đặt', dash(S.junk ? SC.sumSize(S.junk, (c) => c.total) : null), 'junk'),
+    card('junk', 'junk', 'Dọn rác', S.junk ? `${S.junk.length} nhóm, mục an toàn tick sẵn` : 'Cache, log, rác lập trình, file cài đặt', dash(S.junk ? SC.sumSize(S.junk, (c) => c.total) : null), 'junk'),
     card('big', 'big', 'File lớn và cũ', S.big ? `${S.big.length} file lớn, lâu chưa mở` : 'File trên 100 MB, lâu chưa mở', dash(S.big ? SC.sumSize(S.big) : null), 'big'),
     card('media', 'image', 'Ảnh và video', 'Phân loại, xem thumbnail rồi mới xóa', dash(S.media ? SC.sumSize(S.media) : null), 'media'),
     card('files', 'files', 'File trùng', S.dups ? `${S.dups.length} nhóm file giống hệt nhau` : 'File giống hệt nhau trong thư mục của bạn', dash(dupWaste), 'files'),

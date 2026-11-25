@@ -19,5 +19,9 @@ contextBridge.exposeInMainWorld('api', {
   dupScan: inv('dup:scan'),
   appScan: inv('app:scan'),
   trash: inv('items:trash'),
+  storageScan: inv('storage:scan'),
+  eject: inv('storage:eject'),
+  deleteRuntime: inv('storage:deleteRuntime'),
+  openSettings: inv('open:settings'),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, p) => cb(p)),
 });

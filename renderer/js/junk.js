@@ -87,7 +87,8 @@ async function scan() {
 async function clean(paths) {
   const r = await api.junkClean(paths);
   if (r.cancelled) return;
-  SC.toast(`Đã giải phóng ${fmt(r.freed)}` + (r.failed ? ` (${r.failed} mục không xóa được)` : ''));
+  SC.toast(`Đã giải phóng ${fmt(r.freed)}` + (r.failed ? ` (${r.failed} mục không xóa được)` : '') +
+    (r.busy && r.busy.length ? ` · bỏ qua cache của app đang mở: ${r.busy.join(', ')}` : ''));
   SC.refreshDisk();
   await scan();
 }

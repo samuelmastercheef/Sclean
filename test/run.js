@@ -8,6 +8,7 @@ const bigfiles = require('../lib/bigfiles');
 const media = require('../lib/media');
 const dupfiles = require('../lib/dupfiles');
 const dupapps = require('../lib/dupapps');
+const storage = require('../lib/storage');
 
 (async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sclean-'));
@@ -72,6 +73,14 @@ const dupapps = require('../lib/dupapps');
   hw('Projects/old/package.json', 10, 200); hw('Projects/old/node_modules/a/i.js', 90000, 200);
   hw('Projects/fresh/package.json', 10, 1); hw('Projects/fresh/node_modules/a/i.js', 90000, 1);
   const ageDir = (p, d) => { const t0 = new Date(Date.now() - d * 86400000); fs.utimesSync(path.join(home, p), t0, t0); };
+  // cache trình duyệt / Electron: chỉ thư mục cache, không đụng Cookies, IndexedDB
+  hw('Library/Application Support/Google/Chrome/Default/Cache/c1', 30000);
+  hw('Library/Application Support/Google/Chrome/Profile 3/Service Worker/CacheStorage/s1', 30000);
+  hw('Library/Application Support/Google/Chrome/Default/IndexedDB/db', 30000);
+  hw('Library/Application Support/Google/Chrome/Default/Cookies', 3000);
+  hw('Library/Application Support/Notion/Partitions/notion/Service Worker/CacheStorage/n1', 40000);
+  hw('Library/Application Support/Notion/Code Cache/js', 10000);
+  hw('Library/Application Support/Notion/Local Storage/ls', 10000);
   ageDir('Library/Developer/Xcode/Archives/old.xcarchive', 300); ageDir('Library/Application Support/com.gone.app', 100);
   ageDir('Library/Application Support/com.google.Old', 100);
   const installed = path.join(tmp, 'FakeApps');
@@ -94,6 +103,16 @@ const dupapps = require('../lib/dupapps');
   assert.deepStrictEqual(names('leftovers'), ['com.gone.app']);
   assert.deepStrictEqual(get('nodemodules').items.map((i) => i.path.includes('/old/')), [true]);
   assert.ok(get('trash').total > 0);
+  const rel = (p) => path.relative(path.join(home, 'Library/Application Support'), p);
+  assert.deepStrictEqual(get('appcache').items.map((i) => rel(i.path)).sort(), [
+    'Google/Chrome/Default/Cache', 'Google/Chrome/Profile 3/Service Worker/CacheStorage',
+    'Notion/Code Cache', 'Notion/Partitions/notion/Service Worker/CacheStorage'].sort());
+  assert.strictEqual(get('appcache').kind, 'review', 'cache app không tick sẵn');
+  const AS = path.join(home, 'Library/Application Support');
+  assert.strictEqual(junk.cacheOwner(path.join(AS, 'Google/Chrome/Default/Cache'), home), 'Google Chrome');
+  assert.strictEqual(junk.cacheOwner(path.join(AS, 'Notion/Partitions/notion/Cache'), home), 'Notion');
+  assert.strictEqual(junk.cacheOwner(path.join(AS, 'discord/Cache'), home), 'Discord');
+  assert.strictEqual(junk.cacheOwner('/tmp/x', home), null);
   assert.strictEqual(get('caches').kind, 'safe'); assert.strictEqual(get('aidata').kind, 'review');
   console.log('junk OK');
 
@@ -111,6 +130,36 @@ const dupapps = require('../lib/dupapps');
   assert.deepStrictEqual(g.map((x) => x.name).sort(), ['Telegram', 'Zoom 2'].sort());
   assert.strictEqual(path.basename(g.find((x) => x.apps.length === 2 && x.apps[0].bundleId === 'us.zoom.xos').keep), 'Zoom 2.app');
   console.log('dupapps OK');
+
+  // ---- dung lượng ẩn: các hàm phân tích ----
+  const c = storage.parseContainer({ Containers: [
+    { ContainerReference: 'disk1', CapacityCeiling: 5e8, CapacityFree: 4e8, Volumes: [] },
+    { ContainerReference: 'disk3', CapacityCeiling: 500e9, CapacityFree: 20e9, Volumes: [
+      { Name: 'Data', Roles: ['Data'], CapacityInUse: 400e9 }, { Name: 'VM', Roles: ['VM'], CapacityInUse: 20e9 },
+      { Name: 'Macintosh HD', Roles: ['System'], CapacityInUse: 16e9 }] }] }, 'disk3');
+  assert.strictEqual(c.total, 500e9); assert.deepStrictEqual(c.volumes.map((v) => v.role), ['Data', 'VM', 'System']);
+  assert.strictEqual(storage.parseContainer(null, 'disk3'), null);
+  const sw = storage.parseSwap('total = 21504.00M  used = 21195.75M  free = 308.25M  (encrypted)');
+  assert.strictEqual(Math.round(sw.total / 1048576), 21504); assert.ok(sw.used > 2e10);
+  assert.strictEqual(storage.parseSwap(''), null);
+  const sn = storage.parseSnapshots('Snapshots for volume group containing disk /:\ncom.apple.TimeMachine.2026-11-20-101500.local\ncom.apple.os.update-ABC\ncom.apple.os.update-MSUPrepareUpdate\n');
+  assert.strictEqual(sn.total, 3); assert.strictEqual(sn.update, 2); assert.strictEqual(sn.timeMachine[0].date, '2026-11-20 10:15');
+  const im = storage.parseImages({ images: [
+    { 'image-path': '/Users/x/Downloads/Zalo.dmg', blockcount: 2048, blocksize: 512, 'system-entities': [{ 'dev-entry': '/dev/disk8' }, { 'dev-entry': '/dev/disk8s1', 'mount-point': '/Volumes/Zalo' }] },
+    { 'image-path': '/System/Library/AssetsV2/x', 'system-entities': [{ 'mount-point': '/private/var/run/com.apple.security.cryptexd/mnt/sim' }] }] });
+  assert.strictEqual(im.length, 1); assert.strictEqual(im[0].name, 'Zalo'); assert.strictEqual(im[0].size, 1048576);
+  const rts = storage.parseRuntimes({ A: { identifier: 'A', version: '27.2', build: 'b1', sizeBytes: 5, deletable: true, platformIdentifier: 'com.apple.platform.iphonesimulator' },
+    B: { identifier: 'B', version: '27.1', build: 'b0', sizeBytes: 9, deletable: false } });
+  assert.deepStrictEqual(rts.map((r) => r.id), ['B', 'A']); assert.strictEqual(rts[1].platform, 'iphone Simulator');
+  assert.strictEqual(storage.classify('/u/Library/Group Containers/4C6364ACXT.com.parallels.desktop.appstore').label, 'Máy ảo Parallels');
+  assert.strictEqual(storage.classify('/u/Library/Application Support/Google/Chrome').label, 'Dữ liệu trình duyệt');
+  assert.strictEqual(storage.classify('/u/Library/CloudStorage/GoogleDrive-a').label, 'File tải về máy từ dịch vụ đám mây');
+  assert.strictEqual(storage.classify('/u/Library/Application Support/Lạ').label, null);
+  // thư mục lớn: dùng HOME giả, ngưỡng 0 để thấy hết
+  const hd = await storage.hiddenData(home, () => {}, 1);
+  assert.ok(hd.some((x) => x.path.endsWith('Google/Chrome')), 'đo riêng Google/Chrome');
+  assert.ok(!hd.some((x) => x.path.endsWith('Application Support/Google')), 'không đếm trùng thư mục cha');
+  console.log('storage OK');
 
   fs.rmSync(tmp, { recursive: true, force: true });
 })().catch((e) => { console.error(e); process.exit(1); });

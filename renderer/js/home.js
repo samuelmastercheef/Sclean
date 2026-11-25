@@ -47,6 +47,7 @@ function render() {
     card('big', 'big', 'File lớn và cũ', S.big ? `${S.big.length} file lớn, lâu chưa mở` : 'File trên 100 MB, lâu chưa mở', dash(S.big ? SC.sumSize(S.big) : null), 'big'),
     card('media', 'image', 'Ảnh và video', 'Phân loại, xem thumbnail rồi mới xóa', dash(S.media ? SC.sumSize(S.media) : null), 'media'),
     card('files', 'files', 'File trùng', S.dups ? `${S.dups.length} nhóm file giống hệt nhau` : 'File giống hệt nhau trong thư mục của bạn', dash(dupWaste), 'files'),
+    card('applist', 'window', 'Quản lý ứng dụng', S.applist ? `${S.applist.length} ứng dụng, ${S.applist.filter((a) => a.kind !== 'system' && a.lastUsed && Date.now() - a.lastUsed > 180 * 864e5).length} lâu chưa dùng` : 'App hệ thống, lâu chưa dùng, app nặng', S.applist ? fmt(SC.sumSize(S.applist.filter((a) => a.kind !== 'system'), (a) => a.size + a.dataSize)) : '—', 'applist'),
     card('apps', 'apps', 'Ứng dụng trùng', S.apps ? `${S.apps.length} ứng dụng cài nhiều bản` : 'Ứng dụng cài nhiều bản', S.apps ? fmt(SC.sumSize(S.apps, (g) => SC.sumSize(g.apps.slice(1)))) : '—', 'apps'),
     diskCard()));
 }
@@ -54,7 +55,7 @@ function render() {
 async function onHero() {
   if (mode === 'clean') { await SC.pages.junk.cleanSafe(); mode = SC.pages.junk.hasScan() && SC.pages.junk.safeTotal() > 0 ? 'clean' : 'scan'; render(); return; }
   scanningAll = true; heroNote = 'Đang quét toàn bộ, có thể mất vài phút...'; render();
-  const steps = [['junk', 'rác'], ['apps', 'ứng dụng'], ['big', 'file lớn'], ['media', 'ảnh và video'], ['files', 'file trùng']];
+  const steps = [['junk', 'rác'], ['applist', 'danh sách ứng dụng'], ['apps', 'ứng dụng trùng'], ['big', 'file lớn'], ['media', 'ảnh và video'], ['files', 'file trùng']];
   if (SC.pages.files.init && !SC.state.foldersReady) { await SC.pages.files.init(); SC.state.foldersReady = true; }
   for (const [k, label] of steps) {
     heroNote = `Đang quét ${label}...`; render();

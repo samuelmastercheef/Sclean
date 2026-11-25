@@ -14,6 +14,7 @@
 | File lớn và cũ | File trên 50 MB đến 1 GB, lọc theo loại và thời gian chưa mở, xem trước bằng Quick Look |
 | Ảnh và video | Phân nhóm: video lớn, quay màn hình, ảnh chụp màn hình, ảnh giống nhau (so sánh dHash), cũ chưa mở. Bấm vào ô để xem thumbnail lớn trước khi xóa |
 | File trùng | So kích thước, rồi hash đầu/cuối, rồi SHA-256 toàn bộ. Mặc định giữ bản cũ nhất |
+| Quản lý ứng dụng | Mọi ứng dụng trong /Applications, ~/Applications và /System/Applications: app hệ thống (không gỡ được), app của Apple cài thêm, app bên thứ ba. Lần mở cuối (Spotlight), lọc lâu chưa dùng (3, 6, 12 tháng), lớn hơn 500 MB, dung lượng app và dữ liệu đi kèm trong ~/Library. Gỡ vào Thùng rác, tùy chọn kèm dữ liệu; chặn app hệ thống và app đang mở |
 | Ứng dụng trùng | Gom theo Bundle ID và tên "App 2", "App copy", gợi ý giữ bản mới nhất. Bỏ qua app của Apple |
 | Lịch sử và an toàn | Mọi thứ đã dọn (thời gian, đường dẫn, dung lượng, cách dọn). Cài đặt xóa hẳn hay vào Thùng rác |
 | Dung lượng ẩn | Giải thích phần "Dữ liệu hệ thống" Finder không hiện: các phần của ổ APFS (Dữ liệu, swap, Preboot, macOS), snapshot, bản cập nhật macOS đang chờ, runtime iOS Simulator (xóa được, có hỏi lại), ổ DMG đang gắn (tháo ra), thư mục lớn trong ~/Library kèm gợi ý xử lý, và các vùng cần Full Disk Access (Ảnh, Thùng rác, Tin nhắn, Mail, Safari) |
@@ -48,7 +49,7 @@ Muốn quét sao lưu iPhone hoặc Mail Downloads cần cấp **Full Disk Acces
 main.js            tiến trình chính, IPC, kiểm tra đường dẫn, thumbnail
 preload.js         cầu nối an toàn tới giao diện
 lib/               junk, bigfiles, media, dupfiles, dupapps, storage (dung lượng ẩn),
-                   diskmap (bản đồ dung lượng), safety (danh sách cấm), history (lịch sử, cài đặt), util
+                   diskmap (bản đồ dung lượng), applist (quản lý ứng dụng), safety (danh sách cấm), history (lịch sử, cài đặt), util
 renderer/          giao diện (HTML/CSS/JS thuần, không framework)
 build/             logo.svg, icon.png
 test/run.js        test logic bằng dữ liệu giả

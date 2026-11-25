@@ -9,6 +9,7 @@ const media = require('../lib/media');
 const dupfiles = require('../lib/dupfiles');
 const dupapps = require('../lib/dupapps');
 const diskmap = require('../lib/diskmap');
+const applist = require('../lib/applist');
 const { protectedReason } = require('../lib/safety');
 const { createHistory, createSettings } = require('../lib/history');
 const storage = require('../lib/storage');
@@ -238,6 +239,50 @@ const storage = require('../lib/storage');
     await st2.set({ permanentDelete: 'yes' }); // sai kiểu -> bỏ qua
     assert.strictEqual((await st2.get()).permanentDelete, true);
     console.log('history OK');
+  }
+
+  // ---- quản lý ứng dụng ----
+  {
+    assert.strictEqual(applist.classify('/System/Applications/Notes.app', 'com.apple.Notes'), 'system');
+    assert.strictEqual(applist.classify('/Applications/Safari.app', 'com.apple.Safari'), 'system');
+    assert.strictEqual(applist.classify('/Applications/iMovie.app', 'com.apple.iMovieApp'), 'apple');
+    assert.strictEqual(applist.classify('/Applications/Notion.app', 'notion.id'), 'user');
+    assert.strictEqual(applist.classify('/Applications/NoPlist.app', null), 'user');
+    const md = applist.parseMdls('kMDItemLastUsedDate = 2025-03-10 08:15:00 +0000\nkMDItemUseCount     = 42\n');
+    assert.strictEqual(md.lastUsed, Date.parse('2025-03-10T08:15:00Z')); assert.strictEqual(md.useCount, 42);
+    assert.deepStrictEqual(applist.parseMdls('kMDItemLastUsedDate = (null)\nkMDItemUseCount = (null)'), { lastUsed: null, useCount: null });
+    const mf = applist.parseMdfind('/Applications/My App.app   kMDItemLastUsedDate = 2025-03-10 08:15:00 +0000   kMDItemUseCount = 7\n/Applications/Safari.app   kMDItemLastUsedDate = (null)   kMDItemUseCount = (null)\n');
+    assert.strictEqual(mf.get('/Applications/My App.app').lastUsed, Date.parse('2025-03-10T08:15:00Z'));
+    assert.strictEqual(mf.get('/Applications/My App.app').useCount, 7);
+    assert.strictEqual(mf.get('/Applications/Safari.app').lastUsed, null);
+    const rp = applist.relatedPaths('/Users/lu', 'us.zoom.xos', 'zoom.us');
+    assert.ok(rp.includes('/Users/lu/Library/Containers/us.zoom.xos') && rp.includes('/Users/lu/Library/Preferences/us.zoom.xos.plist'));
+    assert.ok(!rp.some((p) => p.includes('Group Containers')), 'không đụng Group Containers');
+    assert.ok(!applist.relatedPaths('/Users/lu', '../evil', 'Google').some((p) => p.includes('evil') || p.endsWith('/Google')));
+
+    const H = path.join(tmp, 'apphome'); const A = path.join(tmp, 'Apps'); const S = path.join(tmp, 'SysApps');
+    const mk = (base, name, id, n) => {
+      const d = path.join(base, name + '.app', 'Contents'); fs.mkdirSync(d, { recursive: true });
+      fs.writeFileSync(path.join(d, 'Info.plist'), `<plist><dict><key>CFBundleIdentifier</key><string>${id}</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleName</key><string>${name}</string></dict></plist>`);
+      fs.writeFileSync(path.join(d, 'bin'), Buffer.alloc(n, 1));
+    };
+    mk(A, 'Notion', 'notion.id', 300000); mk(A, 'Old Tool', 'com.old.tool', 100000); mk(path.join(A, 'Utilities'), 'Helper', 'com.x.helper', 50000);
+    mk(S, 'Notes', 'com.apple.Notes', 80000);
+    const hw = (p, n) => { const f = path.join(H, p); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, Buffer.alloc(n, 2)); };
+    hw('Library/Application Support/Notion/Partitions/x', 200000); hw('Library/Caches/notion.id/c', 50000); hw('Library/Preferences/notion.id.plist', 100);
+    const now = Date.now();
+    const used = { Notion: now - 2 * 86400000, 'Old Tool': now - 400 * 86400000 };
+    const list = await applist.scan(H, () => {}, { roots: [A, S], systemRoots: [S], procs: path.join(A, 'Notion.app') + '/Contents/MacOS/Notion\n',
+      mdls: (p) => ({ lastUsed: used[path.basename(p, '.app')] || null, useCount: null }) });
+    const by = (n) => list.find((a) => a.name === n);
+    assert.strictEqual(list.length, 4);
+    assert.strictEqual(list[0].name, 'Notion', 'sắp xếp theo dung lượng app + dữ liệu');
+    assert.ok(by('Notion').running && !by('Old Tool').running);
+    assert.strictEqual(by('Notion').data.length, 3); assert.ok(by('Notion').dataSize >= 250000);
+    assert.strictEqual(by('Notes').kind, 'system'); assert.strictEqual(by('Notes').data.length, 0);
+    assert.ok(applist.isStale(by('Old Tool'), 180) && !applist.isStale(by('Notion'), 180) && !applist.isStale(by('Notes'), 180));
+    assert.ok(by('Helper'), 'tìm app trong thư mục con');
+    console.log('applist OK');
   }
 
   fs.rmSync(tmp, { recursive: true, force: true });

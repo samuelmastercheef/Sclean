@@ -81,6 +81,13 @@
     <div class="page-body" id="storageBody"><div class="empty">Bấm "Quét" để tìm phần dung lượng mà Finder không hiện.</div></div>
   </section>
 
+  <section class="page" id="page-applist">
+    <header class="page-head"><div><h1>Quản lý ứng dụng</h1><p class="sub">App nào của hệ thống, app nào lâu chưa dùng, app nào nặng. Gỡ vào Thùng rác.</p></div>
+      <div class="actions"><span class="status" id="applistStatus"></span><button class="btn" id="applistScan">Quét</button></div></header>
+    <div class="page-body" id="applistBody"></div>
+    <footer class="page-foot"><div id="applistSum"></div><button class="btn primary" id="applistTrash" disabled>Gỡ các ứng dụng đã chọn</button></footer>
+  </section>
+
   <section class="page" id="page-apps">
     <header class="page-head"><div><h1>Ứng dụng trùng</h1><p class="sub">Tìm ứng dụng cài nhiều bản trong /Applications.</p></div>
       <div class="actions"><span class="status" id="appsStatus"></span><button class="btn" id="appsScan">Quét</button></div></header>
@@ -96,6 +103,7 @@
 <script src="js/media.js"></script>
 <script src="js/files.js"></script>
 <script src="js/apps.js"></script>
+<script src="js/applist.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/map.js"></script>
 <script src="js/history.js"></script>

@@ -20,6 +20,9 @@ const body = () => document.getElementById('applistBody');
 const total = (a) => a.size + (withData ? a.dataSize : 0);
 const stale = (a) => a.kind !== 'system' && (a.lastUsed ? Date.now() - a.lastUsed > staleDays * DAY : (a.mtime && Date.now() - a.mtime > staleDays * DAY));
 
+// Không rõ lần mở cuối thì dùng ngày cài/cập nhật, app hệ thống xếp cuối
+const usedKey = (a) => (a.kind === 'system' ? Number.MAX_SAFE_INTEGER : a.lastUsed || a.mtime || 0);
+
 function matches(a) {
   if (filter === 'stale') return stale(a);
   if (filter === 'big') return a.size + a.dataSize >= BIG;
@@ -96,7 +99,7 @@ function render() {
     updateFoot(); return;
   }
   const shown = apps.filter(matches).sort(sort === 'size' ? (x, y) => total(y) - total(x)
-    : sort === 'used' ? (x, y) => (x.lastUsed || 0) - (y.lastUsed || 0) : (x, y) => x.name.localeCompare(y.name, 'vi'));
+    : sort === 'used' ? (x, y) => usedKey(x) - usedKey(y) : (x, y) => x.name.localeCompare(y.name, 'vi'));
   const sc = b.scrollTop;
   SC.fill(b, summary(),
     h('div', { class: 'chips' }, FILTERS.map(([k, t]) => h('button', { type: 'button', class: 'chip dark' + (filter === k ? ' on' : ''), onclick: () => { filter = k; render(); } }, t)),

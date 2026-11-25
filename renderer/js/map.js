@@ -29,9 +29,16 @@ function explainedBox() {
     const used = d.total - d.free;
     parts.push(h('div', { class: 'stat' }, h('span', { class: 'muted' }, 'Ổ đĩa đang dùng'), h('b', {}, fmt(used)), h('span', { class: 'muted sm' }, `Còn trống ${fmt(d.free)}`)));
     if (res.scope === 'disk') {
-      const gap = Math.max(0, used - measured);
+      // Bản đồ chỉ đo volume Dữ liệu. Swap, macOS, Preboot, Recovery nằm ở volume khác nên trừ riêng ra.
+      const vols = res.volumes || [];
+      const dataVol = vols.find((v) => v.role === 'Data');
+      const others = vols.filter((v) => v.role !== 'Data' && v.used > 0);
+      const gap = Math.max(0, (dataVol ? dataVol.used : used) - measured);
+      const note = others.length
+        ? 'Trong phần Dữ liệu: thư mục bị chặn, snapshot. Ngoài ra ' + others.slice(0, 3).map((v) => `${v.label.split(' (')[0]} ${fmt(v.used)}`).join(', ') + ' nằm ở volume khác'
+        : 'Snapshot, swap, macOS, thư mục bị chặn';
       parts.push(h('div', { class: 'stat' }, h('span', { class: 'muted' }, 'Chưa giải thích được'), h('b', { class: gap > used * 0.15 ? 'warn' : '' }, fmt(gap)),
-        h('span', { class: 'muted sm' }, 'Snapshot, swap, macOS, thư mục bị chặn')));
+        h('span', { class: 'muted sm', title: note }, note)));
     }
   }
   return h('div', { class: 'card stats' }, parts);

@@ -310,7 +310,10 @@ ipcMain.handle('map:scan', async (_e, scope, custom) => {
   diskmap.forEachNode(res.root, (n) => { if (n.path !== root) allowed.map.set(n.path, { size: n.size }); });
   let disk = null;
   try { const s = await fsp.statfs(home); disk = { free: s.bavail * s.bsize, total: s.blocks * s.bsize }; } catch { /* bỏ qua */ }
-  return { ...res, scope, rootPath: root, home, disk, ms: Date.now() - t0 };
+  // Toàn ổ đĩa: lấy dung lượng từng volume APFS để tách swap, macOS, Preboot khỏi phần chưa giải thích được
+  let volumes = null;
+  if (scope === 'disk') { try { const o = await storage.diskOverview(); volumes = o ? o.volumes : null; } catch { /* bỏ qua */ } }
+  return { ...res, scope, rootPath: root, home, disk, volumes, ms: Date.now() - t0 };
 });
 
 // ---------- Tiện ích, lịch sử, cài đặt ----------

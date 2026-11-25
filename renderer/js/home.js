@@ -41,8 +41,11 @@ function render() {
       h('div', { class: 'big' }, safe == null ? '—' : fmt(safe)), h('div', { class: 'muted', style: { marginTop: '4px' } }, heroNote)),
     h('button', { type: 'button', class: 'btn primary', id: 'heroBtn', disabled: scanningAll, onclick: onHero },
       icon(mode === 'clean' ? 'junk' : 'scan', 15, 2), scanningAll ? 'Đang quét...' : (mode === 'clean' ? 'Dọn an toàn ngay' : 'Quét tất cả')));
+  const hid = S.hidden;
   body().replaceChildren(hero, h('div', { class: 'grid3' },
-    card('junk', 'junk', 'Dọn rác', S.junk ? '12 nhóm, mục an toàn tick sẵn' : 'Cache, log, rác lập trình, file cài đặt', dash(S.junk ? SC.sumSize(S.junk, (c) => c.total) : null), 'junk'),
+    card('hidden', 'hidden', 'Dung lượng ẩn', hid ? (hid.fda ? `${hid.items.length} nguồn Finder không thấy` : 'Cần Full Disk Access để đo đủ') : 'Snapshot, swap, máy ảo, dữ liệu app', dash(hid ? SC.sumSize(hid.items) : null), 'hidden'),
+    card('map', 'map', 'Bản đồ dung lượng', S.map ? 'Đi sâu từng thư mục, kể cả mục ẩn' : 'Tìm chỗ chiếm dung lượng, kể cả file ẩn', dash(S.map && S.map.root ? S.map.root.size : null), 'map'),
+    card('junk', 'junk', 'Dọn rác', S.junk ? `${S.junk.length} nhóm, mục an toàn tick sẵn` : 'Cache, log, rác lập trình, file cài đặt', dash(S.junk ? SC.sumSize(S.junk, (c) => c.total) : null), 'junk'),
     card('big', 'big', 'File lớn và cũ', S.big ? `${S.big.length} file lớn, lâu chưa mở` : 'File trên 100 MB, lâu chưa mở', dash(S.big ? SC.sumSize(S.big) : null), 'big'),
     card('media', 'image', 'Ảnh và video', 'Phân loại, xem thumbnail rồi mới xóa', dash(S.media ? SC.sumSize(S.media) : null), 'media'),
     card('files', 'files', 'File trùng', S.dups ? `${S.dups.length} nhóm file giống hệt nhau` : 'File giống hệt nhau trong thư mục của bạn', dash(dupWaste), 'files'),
@@ -53,7 +56,7 @@ function render() {
 async function onHero() {
   if (mode === 'clean') { await SC.pages.junk.cleanSafe(); mode = SC.pages.junk.hasScan() && SC.pages.junk.safeTotal() > 0 ? 'clean' : 'scan'; render(); return; }
   scanningAll = true; heroNote = 'Đang quét toàn bộ, có thể mất vài phút...'; render();
-  const steps = [['junk', 'rác'], ['apps', 'ứng dụng'], ['big', 'file lớn'], ['media', 'ảnh và video'], ['files', 'file trùng']];
+  const steps = [['hidden', 'dung lượng ẩn'], ['junk', 'rác'], ['apps', 'ứng dụng'], ['big', 'file lớn'], ['media', 'ảnh và video'], ['files', 'file trùng']];
   if (SC.pages.files.init && !SC.state.foldersReady) { await SC.pages.files.init(); SC.state.foldersReady = true; }
   for (const [k, label] of steps) {
     heroNote = `Đang quét ${label}...`; render();

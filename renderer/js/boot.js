@@ -13,5 +13,6 @@ api.onProgress((p) => { if (SC.status[p.scope]) SC.status[p.scope](p.text); });
 api.about().then((a) => { document.getElementById('copyright').textContent = `${a.name} ${a.version} · ${a.copyright}`; }).catch(() => {});
 
 SC.pages.files.init().then(() => { SC.state.foldersReady = true; });
+api.getSettings().then((st) => { SC.settings = st; }).catch(() => { SC.settings = { permanentDelete: false }; });
 SC.refreshDisk();
 })();

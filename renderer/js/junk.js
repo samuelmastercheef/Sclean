@@ -20,7 +20,7 @@ function safePaths() { return cats.filter((c) => c.kind === 'safe').flatMap((c) 
 function updateFoot() {
   const n = sel.size;
   const sum = document.getElementById('junkSum');
-  sum.replaceChildren(h('b', {}, fmt(selectedSize())), h('span', { class: 'muted' }, ` đã chọn · ${n} mục · cache, log, node_modules và Thùng rác bị xóa hẳn, mục còn lại vào Thùng rác`));
+  sum.replaceChildren(h('b', {}, fmt(selectedSize())), h('span', { class: 'muted' }, ` đã chọn · ${n} mục · ` + (SC.settings && SC.settings.permanentDelete ? 'cache, log, node_modules bị xóa hẳn, mục còn lại vào Thùng rác' : 'tất cả vào Thùng rác, khôi phục được')));
   document.getElementById('junkClean').disabled = n === 0;
 }
 

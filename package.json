@@ -1,8 +1,8 @@
 {
   "name": "sclean",
   "productName": "S Clean",
-  "version": "1.0.0",
-  "description": "S Clean: dọn rác, file lớn, ảnh/video, file trùng và ứng dụng trùng cho macOS",
+  "version": "1.1.0",
+  "description": "S Clean: bản đồ dung lượng, dung lượng ẩn, dọn rác, file lớn, ảnh/video, file trùng và ứng dụng trùng cho macOS",
   "author": "Socin.org",
   "homepage": "https://socin.org",
   "license": "UNLICENSED",

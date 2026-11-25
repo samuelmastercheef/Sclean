@@ -23,5 +23,11 @@ contextBridge.exposeInMainWorld('api', {
   eject: inv('storage:eject'),
   deleteRuntime: inv('storage:deleteRuntime'),
   openSettings: inv('open:settings'),
+  mapScan: inv('map:scan'),
+  copy: inv('clipboard:copy'),
+  openTrash: inv('open:trash'),
+  history: inv('history:list'),
+  getSettings: inv('settings:get'),
+  setSettings: inv('settings:set'),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, p) => cb(p)),
 });

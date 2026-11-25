@@ -8,6 +8,9 @@ const bigfiles = require('../lib/bigfiles');
 const media = require('../lib/media');
 const dupfiles = require('../lib/dupfiles');
 const dupapps = require('../lib/dupapps');
+const diskmap = require('../lib/diskmap');
+const { protectedReason } = require('../lib/safety');
+const { createHistory, createSettings } = require('../lib/history');
 const storage = require('../lib/storage');
 
 (async () => {
@@ -160,6 +163,82 @@ const storage = require('../lib/storage');
   assert.ok(hd.some((x) => x.path.endsWith('Google/Chrome')), 'đo riêng Google/Chrome');
   assert.ok(!hd.some((x) => x.path.endsWith('Application Support/Google')), 'không đếm trùng thư mục cha');
   console.log('storage OK');
+
+  // ---- bản đồ dung lượng ----
+  {
+    const H = path.join(tmp, 'maphome');
+    const w = (p, n) => { const f = path.join(H, p); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, Buffer.alloc(n, 7)); return f; };
+    w('Documents/a.bin', 300000); w('.docker/vm/disk.raw', 900000); w('Library/Containers/com.x/Data/big', 500000);
+    w('Pictures/P.photoslibrary/originals/1.jpg', 200000); w('small.txt', 10);
+    const orig = w('Movies/clip.mov', 400000); fs.linkSync(orig, path.join(H, 'Movies', 'clip-link.mov')); // hardlink không tính 2 lần
+    fs.symlinkSync(path.join(H, 'Documents'), path.join(H, 'docs-link'));                              // symlink bỏ qua
+    const r = await diskmap.measure(H, { home: H, keepMin: 1 });
+    const kid = (n, name) => n.children.find((c) => c.name === name);
+    assert.ok(!kid(r.root, 'docs-link'), 'bỏ qua symlink');
+    assert.strictEqual(kid(r.root, '.docker').why, 'dot');
+    assert.strictEqual(kid(kid(r.root, '.docker'), 'vm').why, 'dot', 'con của thư mục ẩn cũng ẩn');
+    assert.strictEqual(kid(r.root, 'Library').why, 'library');
+    assert.strictEqual(kid(kid(r.root, 'Library'), 'Containers').why, 'library');
+    assert.strictEqual(kid(r.root, 'Documents').why, null);
+    const lib = kid(kid(r.root, 'Pictures'), 'P.photoslibrary');
+    assert.ok(lib.pkg && lib.why === null && kid(lib, 'originals').why === 'package', 'gói hiện, bên trong ẩn');
+    assert.strictEqual(r.root.children[0].name, '.docker', 'sắp xếp lớn trước');
+    const movies = kid(r.root, 'Movies');
+    assert.ok(movies.size >= 400000 && movies.size < 800000, 'hardlink chỉ tính 1 lần');
+    assert.strictEqual(r.root.files, 6);
+    const sum = r.root.children.reduce((s, c) => s + c.size, 0) + (r.root.other ? r.root.other.size : 0);
+    assert.strictEqual(sum, r.root.size, 'tổng con = cha');
+    // keepMin lớn: mục nhỏ gộp vào "khác" ở tầng sâu
+    const r2 = await diskmap.measure(H, { home: H, keepMin: 10 * 1024 * 1024 });
+    const deep = kid(kid(r2.root, 'Library'), 'Containers');
+    assert.ok(deep.children.length === 0 && deep.other.count === 1);
+    let cnt = 0; diskmap.forEachNode(r.root, () => cnt++); assert.ok(cnt > 8);
+    if (process.getuid && process.getuid() !== 0) { // root đọc được mọi thứ nên bỏ qua
+      const locked = path.join(H, 'locked'); fs.mkdirSync(locked); fs.chmodSync(locked, 0o000);
+      const r3 = await diskmap.measure(H, { home: H, keepMin: 1 });
+      fs.chmodSync(locked, 0o755);
+      assert.ok(r3.denied.includes(locked) && kid(r3.root, 'locked').denied);
+    }
+    // File chỉ lưu trên mây / file thưa: không chiếm block nào thì tính 0, không tính theo kích thước danh nghĩa
+    const cloud = path.join(H, 'Cloud', 'clip.mp4'); fs.mkdirSync(path.dirname(cloud)); fs.writeFileSync(cloud, ''); fs.truncateSync(cloud, 4 * 1024 ** 3);
+    const r4 = await diskmap.measure(H, { home: H, keepMin: 1 });
+    assert.ok(kid(r4.root, 'Cloud').size < 1024 * 1024, 'file chỉ trên mây không được tính 4 GB');
+    console.log('diskmap OK');
+  }
+
+  // ---- danh sách cấm ----
+  {
+    const H = '/Users/lu';
+    for (const p of ['/', '/System/Library/x', '/usr/bin', '/private/var/vm/sleepimage', H, H + '/Library', H + '/Documents', H + '/Library/Containers',
+      H + '/Library/Mail/V10', H + '/Library/Containers/com.apple.Safari', H + '/Pictures/Photos Library.photoslibrary', '/etc/hosts', '/Applications',
+      '/System/Volumes/Data/Users/lu/Library', 'relative/path', '/Volumes/Zalo']) {
+      assert.ok(protectedReason(p, H), 'phải cấm: ' + p);
+    }
+    for (const p of [H + '/Library/Caches/com.foo', H + '/.docker', H + '/Documents/a.pdf', '/Applications/Zoom.app', H + '/.Trash/old.txt',
+      H + '/Library/Group Containers/xx.com.parallels.desktop/Win11.pvm', '/System/Volumes/Data/Users/lu/Downloads/a.dmg',
+      H + '/Library/Containers/com.apple.mail/Data/Library/Mail Downloads/x.pdf']) {
+      assert.strictEqual(protectedReason(p, H), null, 'phải cho phép: ' + p);
+    }
+    console.log('safety OK');
+  }
+
+  // ---- lịch sử và cài đặt ----
+  {
+    const d = path.join(tmp, 'store');
+    const hist = createHistory(d);
+    await hist.add([{ action: 'trash', path: '/a', size: 10, source: 'X' }]);
+    await hist.add([{ action: 'delete', path: '/b', size: 5 }]);
+    const l = await hist.list();
+    assert.deepStrictEqual(l.map((e) => e.path), ['/b', '/a'], 'mới nhất trước');
+    const st = createSettings(d, { permanentDelete: false });
+    assert.strictEqual((await st.get()).permanentDelete, false);
+    await st.set({ permanentDelete: true, evil: 1 });
+    const st2 = createSettings(d, { permanentDelete: false });
+    assert.deepStrictEqual(await st2.get(), { permanentDelete: true });
+    await st2.set({ permanentDelete: 'yes' }); // sai kiểu -> bỏ qua
+    assert.strictEqual((await st2.get()).permanentDelete, true);
+    console.log('history OK');
+  }
 
   fs.rmSync(tmp, { recursive: true, force: true });
 })().catch((e) => { console.error(e); process.exit(1); });

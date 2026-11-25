@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, clipboard } = require('electron');
 const { spawn, execFile } = require('child_process');
 const fsp = require('fs').promises;
 const os = require('os');
@@ -10,6 +10,9 @@ const media = require('./lib/media');
 const dupfiles = require('./lib/dupfiles');
 const dupapps = require('./lib/dupapps');
 const storage = require('./lib/storage');
+const diskmap = require('./lib/diskmap');
+const { protectedReason } = require('./lib/safety');
+const { createHistory, createSettings } = require('./lib/history');
 
 app.setName('S Clean');
 app.setAboutPanelOptions({
@@ -19,10 +22,10 @@ app.setAboutPanelOptions({
 });
 
 let win;
-const cancel = { big: false, media: false, dup: false };
+const cancel = { big: false, media: false, dup: false, map: false };
 
 // Chỉ cho phép thao tác trên những đường dẫn đã nằm trong kết quả quét gần nhất
-const allowed = { junk: new Map(), big: new Map(), media: new Map(), dup: new Map(), app: new Map(), storage: new Map() };
+const allowed = { junk: new Map(), big: new Map(), media: new Map(), dup: new Map(), app: new Map(), storage: new Map(), map: new Map() };
 const allowedMounts = new Set();
 const allowedRuntimes = new Map();
 let dupGroups = [];
@@ -37,6 +40,27 @@ const fmt = (n) => {
 const send = (ch, payload) => { if (win && !win.isDestroyed()) win.webContents.send(ch, payload); };
 const isAllowed = (p) => Object.values(allowed).some((m) => m.has(p));
 const home = os.homedir();
+
+// Lịch sử dọn dẹp và cài đặt, lưu trong thư mục dữ liệu của app
+let history, settings;
+const DEFAULT_SETTINGS = { permanentDelete: false };
+function initStore() {
+  const dir = app.getPath('userData');
+  history = createHistory(dir);
+  settings = createSettings(dir, DEFAULT_SETTINGS);
+}
+// Quét "toàn ổ đĩa" trả đường dẫn dạng /System/Volumes/Data/Users/...: đổi về đường dẫn thường (firmlink)
+const realPath = (p) => p.replace(/^\/System\/Volumes\/Data(?=\/)/, '');
+
+// Chuyển 1 đường dẫn vào Thùng rác (hoặc xóa hẳn) sau khi kiểm tra danh sách cấm, rồi ghi lịch sử
+async function removePath(p, size, how, source, log) {
+  const why = protectedReason(p, home);
+  if (why) throw new Error(why);
+  if (how === 'delete') await fsp.rm(realPath(p), { recursive: true, force: true }); else await shell.trashItem(realPath(p));
+  log.push({ action: how === 'delete' ? 'delete' : 'trash', path: p, size, source });
+}
+// Mặc định mọi thứ vào Thùng rác. Chỉ xóa hẳn khi làm trống Thùng rác, hoặc khi người dùng bật "xóa hẳn" trong cài đặt.
+const effectiveHow = (info, s) => (info.cat === 'trash' ? 'delete' : (info.how === 'delete' && s.permanentDelete ? 'delete' : 'trash'));
 const run = (cmd, args, timeout = 60000) => new Promise((resolve) => {
   execFile(cmd, args, { timeout, maxBuffer: 8 << 20 }, (err, stdout, stderr) => resolve({ ok: !err, out: String(stdout || ''), err: String(stderr || (err && err.message) || '') }));
 });
@@ -63,6 +87,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  initStore();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
@@ -81,7 +106,7 @@ ipcMain.handle('disk:info', async () => {
 });
 ipcMain.handle('about', () => ({ name: 'S Clean', version: app.getVersion(), copyright: '© 2026 Socin.org' }));
 ipcMain.handle('scan:cancel', (_e, scope) => { if (scope in cancel) cancel[scope] = true; });
-ipcMain.handle('reveal', (_e, p) => { if (isAllowed(p)) shell.showItemInFolder(p); });
+ipcMain.handle('reveal', (_e, p) => { if (isAllowed(p)) shell.showItemInFolder(realPath(p)); });
 ipcMain.handle('dialog:pickFolder', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'multiSelections'] });
   return r.canceled ? [] : r.filePaths;
@@ -132,15 +157,19 @@ ipcMain.handle('junk:scan', async () => {
 });
 
 ipcMain.handle('junk:clean', async (_e, paths) => {
-  const list = paths.filter((p) => allowed.junk.has(p));
+  const list = paths.filter((p) => allowed.junk.has(p) && !protectedReason(p, home));
   if (!list.length) return { cancelled: true };
+  const st = await settings.get();
   const total = list.reduce((s, p) => s + allowed.junk.get(p).size, 0);
-  const perm = list.filter((p) => allowed.junk.get(p).how === 'delete').length;
+  const perm = list.filter((p) => effectiveHow(allowed.junk.get(p), st) === 'delete');
+  const emptyTrash = perm.some((p) => allowed.junk.get(p).cat === 'trash');
   const ok = await confirm(`Dọn ${list.length} mục (${fmt(total)})?`,
-    `${perm} mục bị xóa hẳn (cache, log, node_modules, Thùng rác). ${list.length - perm} mục chuyển vào Thùng rác.` +
+    (perm.length
+      ? `${perm.length} mục bị xóa hẳn${emptyTrash ? ' (gồm làm trống Thùng rác, không khôi phục được)' : ''}. ${list.length - perm.length} mục chuyển vào Thùng rác.`
+      : 'Tất cả chuyển vào Thùng rác, khôi phục được. Làm trống Thùng rác để thực sự giải phóng ổ đĩa.') +
     (list.some((p) => allowed.junk.get(p).cat === 'appcache') ? '\nCache của trình duyệt và ứng dụng đang mở sẽ được bỏ qua: hãy thoát chúng trước nếu muốn dọn.' : ''), 'Dọn dẹp');
   if (!ok) return { cancelled: true };
-  let freed = 0, failed = 0;
+  let freed = 0, failed = 0; const log = [];
   const busy = new Set();
   const procs = list.some((p) => allowed.junk.get(p).cat === 'appcache') ? await runningApps() : '';
   for (const p of list) {
@@ -149,11 +178,9 @@ ipcMain.handle('junk:clean', async (_e, paths) => {
       const owner = junk.cacheOwner(p, home);
       if (owner && procs.includes('/' + owner.toLowerCase() + '.app/')) { busy.add(owner); continue; }
     }
-    try {
-      if (info.how === 'trash') await shell.trashItem(p); else await fsp.rm(p, { recursive: true, force: true });
-      freed += info.size; allowed.junk.delete(p);
-    } catch { failed++; }
+    try { await removePath(p, info.size, effectiveHow(info, st), 'Dọn rác', log); freed += info.size; allowed.junk.delete(p); } catch { failed++; }
   }
+  await history.add(log).catch(() => {});
   return { cancelled: false, freed, failed, busy: [...busy] };
 });
 
@@ -179,6 +206,7 @@ ipcMain.handle('storage:eject', async (_e, mounts) => {
     const r = await run('hdiutil', ['detach', m]);
     if (r.ok) { done++; allowedMounts.delete(m); } else failed.push(path.basename(m));
   }
+  await history.add(list.filter((m) => !allowedMounts.has(m)).map((m) => ({ action: 'eject', path: m, source: 'Dung lượng ẩn' }))).catch(() => {});
   return { done, failed };
 });
 
@@ -193,6 +221,7 @@ ipcMain.handle('storage:deleteRuntime', async (_e, id) => {
   const r = await run('xcrun', ['simctl', 'runtime', 'delete', id], 300000);
   if (!r.ok) return { error: r.err.trim().split('\n').pop() || 'Không xóa được' };
   allowedRuntimes.delete(id);
+  await history.add([{ action: 'delete', path: `${rt.platform} ${rt.version} (${rt.build})`, size: rt.size, source: 'Runtime Simulator' }]).catch(() => {});
   return { freed: rt.size };
 });
 
@@ -255,15 +284,38 @@ ipcMain.handle('items:trash', async (_e, kind, paths) => {
     if (g.every((p) => set.has(p))) return { error: 'Không thể xóa hết mọi bản trong một nhóm. Hãy giữ lại ít nhất một bản.' };
   }
   const size = [...set].reduce((s, p) => s + map.get(p).size, 0);
-  const label = { big: 'file', media: 'ảnh/video', dup: 'file trùng', app: 'ứng dụng' }[kind];
+  for (const p of set) { const why = protectedReason(p, home); if (why) return { error: `${path.basename(p)}: ${why}` }; }
+  const label = { big: 'file', media: 'ảnh/video', dup: 'file trùng', app: 'ứng dụng', map: 'mục', storage: 'mục' }[kind];
   const ok = await confirm(`Chuyển ${set.size} ${label} vào Thùng rác?`,
     `Giải phóng khoảng ${fmt(size)}. Bạn vẫn khôi phục được từ Thùng rác.` +
     (kind === 'app' ? '\nHãy thoát các ứng dụng này trước khi gỡ.' : ''), 'Chuyển vào Thùng rác');
   if (!ok) return { cancelled: true };
-  let done = 0, freed = 0; const failed = [];
+  let done = 0, freed = 0; const failed = []; const log = [];
+  const source = { big: 'File lớn', media: 'Ảnh và video', dup: 'File trùng', app: 'Ứng dụng trùng', map: 'Bản đồ dung lượng', storage: 'Dung lượng ẩn' }[kind];
   for (const p of set) {
-    try { await shell.trashItem(p); done++; freed += map.get(p).size; map.delete(p); }
+    try { await removePath(p, map.get(p).size, 'trash', source, log); done++; freed += map.get(p).size; map.delete(p); }
     catch { failed.push(path.basename(p)); }
   }
+  await history.add(log).catch(() => {});
   return { cancelled: false, done, freed, failed };
 });
+
+// ---------- Bản đồ dung lượng ----------
+ipcMain.handle('map:scan', async (_e, scope, custom) => {
+  cancel.map = false;
+  const root = scope === 'disk' ? await diskmap.wholeDiskRoot() : scope === 'custom' && typeof custom === 'string' ? custom : home;
+  const t0 = Date.now();
+  const res = await diskmap.measure(root, { home }, (p) => send('progress', { scope: 'map', text: `Đã đo ${p.files.toLocaleString('vi-VN')} file · ${fmt(p.bytes)}` }), () => cancel.map);
+  allowed.map.clear();
+  diskmap.forEachNode(res.root, (n) => { if (n.path !== root) allowed.map.set(n.path, { size: n.size }); });
+  let disk = null;
+  try { const s = await fsp.statfs(home); disk = { free: s.bavail * s.bsize, total: s.blocks * s.bsize }; } catch { /* bỏ qua */ }
+  return { ...res, scope, rootPath: root, home, disk, ms: Date.now() - t0 };
+});
+
+// ---------- Tiện ích, lịch sử, cài đặt ----------
+ipcMain.handle('clipboard:copy', (_e, text) => { if (typeof text === 'string' && text.length < 4096) clipboard.writeText(text); });
+ipcMain.handle('open:trash', () => shell.openPath(path.join(home, '.Trash')));
+ipcMain.handle('history:list', () => history.list(500));
+ipcMain.handle('settings:get', () => settings.get());
+ipcMain.handle('settings:set', (_e, patch) => settings.set(patch || {}));

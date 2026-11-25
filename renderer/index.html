@@ -24,7 +24,7 @@
     <div class="disk-title">Macintosh HD</div>
     <div class="meter"><i id="diskMeter"></i></div>
     <div class="disk-text" id="diskText">Đang đọc...</div>
-    <div class="disk-text" id="diskPend" hidden style="margin-top:6px;color:#7F5200;font-size:11px"></div>
+    <div class="disk-text disk-pend" id="diskPend" hidden></div>
   </div>
   <div class="copyright" id="copyright">S Clean · © 2026 Socin.org</div>
 </aside>
@@ -33,6 +33,18 @@
   <section class="page active" id="page-home">
     <header class="page-head"><div><h1>Tổng quan</h1><p class="sub">Dọn dẹp Mac gọn trong ba bước: quét, xem lại, dọn.</p></div></header>
     <div class="page-body" id="homeBody"></div>
+  </section>
+
+  <section class="page" id="page-map">
+    <header class="page-head"><div><h1>Bản đồ dung lượng</h1><p class="sub">Đo mọi thứ, kể cả file ẩn và thư mục Finder không cho thấy.</p></div>
+      <div class="actions"><span class="status" id="mapStatus"></span><div class="seg" id="mapScope"></div><button class="btn" id="mapScan">Quét</button></div></header>
+    <div class="page-body" id="mapBody"></div>
+  </section>
+
+  <section class="page" id="page-history">
+    <header class="page-head"><div><h1>Lịch sử và an toàn</h1><p class="sub">Những gì S Clean đã dọn, và cách S Clean bảo vệ máy của bạn.</p></div>
+      <div class="actions"><button class="btn" id="historyTrash">Mở Thùng rác</button></div></header>
+    <div class="page-body" id="historyBody"></div>
   </section>
 
   <section class="page" id="page-junk">
@@ -85,6 +97,8 @@
 <script src="js/files.js"></script>
 <script src="js/apps.js"></script>
 <script src="js/storage.js"></script>
+<script src="js/map.js"></script>
+<script src="js/history.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>
